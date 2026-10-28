@@ -1,0 +1,21 @@
+# environment
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# data: raw Zenodo files (6.6 GB) and regenerated tables/graphs
+data/raw/
+data/processed/
+
+# training artefacts and logs
+checkpoints/
+logs/
+*.pt
+*.pth
+
+# editor / OS
+.vscode/
+.claude/
+.DS_Store
