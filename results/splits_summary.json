@@ -1,0 +1,80 @@
+{
+ "n_scenarios": {
+  "train": 4233,
+  "val": 907,
+  "test": 907,
+  "test_unseen_topo": 1080
+ },
+ "frac_scenarios": {
+  "train": 0.5939,
+  "val": 0.1273,
+  "test": 0.1273,
+  "test_unseen_topo": 0.1515
+ },
+ "n_topologies": {
+  "train": 137,
+  "val": 127,
+  "test": 134,
+  "test_unseen_topo": 24
+ },
+ "heldout_topologies": [
+  "Basnet",
+  "Bics",
+  "Bren",
+  "Columbus",
+  "Gambia",
+  "Garr200912",
+  "HiberniaIreland",
+  "HiberniaUk",
+  "Ibm",
+  "Integra",
+  "Mren",
+  "Niif",
+  "Nordu1989",
+  "Oxford",
+  "Packetexchange",
+  "Renam",
+  "Renater1999",
+  "Renater2008",
+  "Savvis",
+  "Sinet",
+  "Ulaknet",
+  "VisionNet",
+  "VtlWavenet2008",
+  "Zamren"
+ ],
+ "n_flows_by_slice": {
+  "train": {
+   "URLLC": 190814,
+   "eMBB": 39026,
+   "mMTC": 704707
+  },
+  "val": {
+   "URLLC": 41387,
+   "eMBB": 8398,
+   "mMTC": 160081
+  },
+  "test": {
+   "URLLC": 42169,
+   "eMBB": 8630,
+   "mMTC": 151154
+  },
+  "test_unseen_topo": {
+   "URLLC": 51086,
+   "eMBB": 9952,
+   "mMTC": 169265
+  }
+ },
+ "scen_rho_max_median": {
+  "train": 1.633,
+  "val": 1.609,
+  "test": 1.65,
+  "test_unseen_topo": 1.35
+ },
+ "core_nodes_median": {
+  "train": 16.0,
+  "val": 16.0,
+  "test": 16.0,
+  "test_unseen_topo": 16.0
+ }
+}

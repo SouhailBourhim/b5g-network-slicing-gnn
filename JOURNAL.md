@@ -53,3 +53,18 @@ Format : date — décision — raison (appuyée sur une donnée, un graphe ou u
 - Conséquence : une règle à seuil sur les entrées détecte presque tous les flux affamés mais avec beaucoup de faux positifs. Hypothèse à tester : un modèle qui voit la compétition réelle dans chaque file (GNN) les sépare mieux. Utile pour la définition des événements (L4).
 
 **D1.9 — Coude du délai à ρ ≈ 1 (figure L1_05).** La médiane du délai est multipliée par ~10 entre ρ_max = 0,95 et 1,05 (eMBB, mMTC), puis plafonne : la file de 32 paquets borne l'attente, l'excès devient de la perte (M/M/1/K). Point de départ du choix de τ en L4.
+
+## 2026-10-28 — Étape 2 (prérequis communs, avant le travail en parallèle)
+
+**D2.1 — Unité de split = le scénario ; test « topologies inédites » découpé en premier.**
+- 15 % des topologies tirées *dans chaque quartile de taille* du cœur (S ≤ 13, M ≤ 21, L ≤ 33, XL > 33 nœuds) → 24 topologies, 1 080 scénarios (`test_unseen_topo`). Puis les scénarios restants en 70/15/15 groupés par scénario, stratifiés par tercile de ρ max du scénario → 4 233 / 907 / 907. Seed 42, `results/splits.csv` versionné, tests `tests/test_splits.py`.
+- Raison : les flux d'un scénario partagent des liens (fuite si on les sépare) ; découper les topologies en premier garantit qu'aucune n'apparaît des deux côtés. La stratification par taille met petits et grands réseaux dans le test inédit ; celle par charge garde la même proportion de scénarios congestionnés partout.
+- Constat à garder pour H3 : les topologies retenues sont moins chargées (ρ max médian 1,35 contre 1,63 en train). L'écart d'erreur sur `test_unseen_topo` mélangera donc « topologie nouvelle » et « charge différente » ; à contrôler en L6 (comparer à charge égale).
+- Alternative rejetée : split aléatoire par flux (fuite, preuve expérimentale à faire en L2 par l'équipe).
+
+**D2.2 — Métriques communes : MAE / MSE / RMSE sur log10(délai) + MdAPE en secondes, toujours par type de slice** (`src/metrics.py`, tests à la main). Baseline naïve (médiane train par slice) : MAE_log = 0,82 sur test.
+
+**D2.3 — Contrats de fichiers et données partagées.** Prédictions `results/preds/<modèle>__seed<k>.parquet`, événements `data/processed/events.parquet`, évaluation unique `src/evaluate.py` → `results/metrics_all.csv`. Tables traitées publiées dans la release GitHub `data-v1` avec SHA-256 (`src/data_sync.py`).
+- Alternatives rejetées : Git LFS (quota gratuit 1 Go), dossier partagé (ni version ni vérification d'intégrité), chacun re-parse (10 min et risque de versions différentes).
+
+**D2.4 — Entraînement sur GPU** (RTX 5070 Laptop, torch 2.14.1+cu130). L'index cu128 s'arrête à torch 2.11 ; cu130 est supporté par le pilote (CUDA 13.1).

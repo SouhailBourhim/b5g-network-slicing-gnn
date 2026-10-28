@@ -10,7 +10,9 @@ scikit-learn>=1.5
 lightgbm>=4.5
 shap>=0.46
 
-# Deep learning (CPU wheels: pip install --index-url https://download.pytorch.org/whl/cpu torch)
+# Deep learning. Install torch FIRST with the right wheel:
+#   NVIDIA GPU (RTX 50xx needs CUDA >= 12.8): pip install "torch==2.14.1+cu130" --index-url https://download.pytorch.org/whl/cu130
+#   CPU only:                                 pip install torch --index-url https://download.pytorch.org/whl/cpu
 torch>=2.5
 torch_geometric>=2.6
 
