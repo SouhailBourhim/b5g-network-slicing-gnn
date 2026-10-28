@@ -43,3 +43,13 @@ Format : date — décision — raison (appuyée sur une donnée, un graphe ou u
 **D1.5 — Plusieurs « entrées » sont constantes et donc sans information :** loi d'inter-arrivée (Poisson), loi de taille (binomiale), file de 32 paquets, `maxAvgLambda` ; le débit réel est constant par type de slice (eMBB 22,5 Mb/s, URLLC 3,5 Mb/s, mMTC 250 kb/s). La variabilité du délai vient donc de la **topologie, du routage, de la compétition entre flux et de l'allocation WFQ**, pas du profil de trafic individuel. C'est un argument en faveur d'un modèle relationnel (GNN).
 
 **D1.6 — Résolution des sorties : le simulateur écrit délai et gigue avec 6 décimales.** Les gigues < 1e-6 s² et les délais ~1e-5 s sont quantifiés (pic à 1e-6 dans l'histogramme de la gigue). La gigue reste une cible secondaire.
+
+## 2026-10-28 — Étape 1 : confirmation sur le jeu complet (79 archives, parsing 9,8 min)
+
+**D1.7 — Les constats du sous-ensemble de dev tiennent sur tout le jeu** (`results/eda_summary.json`) : 7 127 scénarios valides (773 écartés, statut ≠ OK), 162 topologies (41 scénarios/topologie en médiane), 1 576 669 flux, 7 446 192 sauts. Débit mesuré / débit calculé = 1,00005 (médiane). Chemins identiques au fichier slices pour 58 % des flux seulement ; corrélation min(ρ,1) vs utilisation mesurée = 0,984 avec `routing_K.txt`. Délai : 8,3 ordres de grandeur, asymétrie 38 brute / 0,99 en log10. 9 flux sans paquet reçu.
+
+**D1.8 — Flux affamés = part WFQ quasi nulle *et* lien saturé, mais la règle n'est pas suffisante.**
+- Constat : 45 744 des 46 194 flux > 1 s ont, sur au moins un saut, une part WFQ < 1e-3 sur un lien à ρ ≥ 1. Une part quasi nulle sur un lien non saturé est sans effet (15 flux > 1 s sur 104 392), car WFQ redistribue la capacité inutilisée. Mais 77 158 flux qui remplissent la condition restent sous 10 ms.
+- Conséquence : une règle à seuil sur les entrées détecte presque tous les flux affamés mais avec beaucoup de faux positifs. Hypothèse à tester : un modèle qui voit la compétition réelle dans chaque file (GNN) les sépare mieux. Utile pour la définition des événements (L4).
+
+**D1.9 — Coude du délai à ρ ≈ 1 (figure L1_05).** La médiane du délai est multipliée par ~10 entre ρ_max = 0,95 et 1,05 (eMBB, mMTC), puis plafonne : la file de 32 paquets borne l'attente, l'excès devient de la perte (M/M/1/K). Point de départ du choix de τ en L4.

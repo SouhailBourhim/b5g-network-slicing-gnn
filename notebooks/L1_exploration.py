@@ -185,6 +185,23 @@ summary["starvation_crosstab"] = starv.to_dict()
 starv
 
 # %% [markdown]
+# Une part quasi nulle ne suffit pas : WFQ est *conservatif* (il redistribue la capacité inutilisée par les autres
+# files). Une file de poids ~0 n'est donc affamée que si le lien est **aussi** saturé. On croise les deux conditions
+# au niveau du saut :
+
+# %%
+hh = hops[["scenario_id", "flow_id", "wfq_share", "rho_link"]].copy()
+hh["part_quasi_nulle"] = hh.wfq_share < 1e-3
+hh["part_quasi_nulle_ET_lien_sature"] = hh.part_quasi_nulle & (hh.rho_link >= 1)
+anyhop = hh.groupby(["scenario_id", "flow_id"])[["part_quasi_nulle", "part_quasi_nulle_ET_lien_sature"]].any().reset_index()
+ff = f[["scenario_id", "flow_id", "delay"]].merge(anyhop)
+starv2 = pd.crosstab([ff.part_quasi_nulle, ff.part_quasi_nulle_ET_lien_sature],
+                     pd.cut(ff.delay, [-2, 0, 0.01, 0.1, 1, 1e4], labels=["aucun paquet", "<10 ms", "10-100 ms", "0,1-1 s", ">1 s"]))
+summary["starvation_x_saturation"] = {f"part<1e-3={a}, part<1e-3 & rho>=1={b}": row.to_dict() for (a, b), row in starv2.iterrows()}
+del hh, anyhop, ff
+starv2
+
+# %% [markdown]
 # ## 5. Corrélations
 
 # %%
@@ -206,3 +223,21 @@ vt
 with open(RESULTS_DIR / "eda_summary.json", "w", encoding="utf-8") as fh:
     json.dump(summary, fh, indent=1, ensure_ascii=False, default=str)
 print("écrit :", RESULTS_DIR / "eda_summary.json")
+
+# %% [markdown]
+# ## 7. Ce qu'il faut retenir (chiffres : `results/eda_summary.json`)
+#
+# 1. **Volume.** 7 127 scénarios valides (773 écartés car la simulation n'a pas atteint l'état `OK`), 162 topologies,
+#    1,58 M flux, 7,4 M sauts flux→lien. Assez de topologies (41 scénarios par topologie en médiane) pour un test
+#    sur **topologies inédites**.
+# 2. **Déséquilibre.** 75 % des flux sont mMTC, 21 % URLLC, 4 % eMBB → les métriques seront toujours rapportées
+#    **par type de slice**, sinon mMTC domine tout.
+# 3. **Cible très asymétrique.** Le délai couvre 8 ordres de grandeur (1e-5 s à ~1 900 s), asymétrie 38 en brut contre
+#    0,99 en log10 → on prédit **log10(délai)**.
+# 4. **Le profil de trafic est constant par type de slice** (débit, lois, file de 32 paquets) : la variabilité du délai
+#    vient de la **topologie, du routage, de la compétition entre flux et de l'allocation WFQ**.
+# 5. **ρ calculé depuis les entrées est fiable** (corrélation 0,984 avec l'utilisation mesurée) et le délai montre un
+#    **coude net à ρ ≈ 1** (figure L1_05) : base du seuil d'événement en L4.
+# 6. **Flux affamés.** ~2,9 % des flux ont un délai > 1 s ; presque tous ont une file WFQ de poids quasi nul **sur un lien
+#    saturé**. Mais beaucoup de flux dans la même situation restent rapides : aucune règle simple ne sépare les deux,
+#    il faut un modèle qui voit avec qui chaque file est en compétition → argument pour le GNN.
