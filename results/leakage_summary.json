@@ -1,0 +1,10 @@
+{
+ "mae_log": {
+  "A_flow_split|estimated": 0.1266736685237311,
+  "A_flow_split|true": 0.39865349332407196,
+  "B_scenario_split|estimated": 0.35837134471691773,
+  "B_scenario_split|true": 0.41022453928420605
+ },
+ "optimism_factor_A_true_over_estimated": 3.1470904566830953,
+ "optimism_factor_B_true_over_estimated": 1.1446912408921752
+}

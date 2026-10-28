@@ -21,13 +21,12 @@ pip install -r requirements.txt
 
 ## Données : tout le monde travaille sur les mêmes fichiers
 
-Les tables traitées (~270 Mo) sont publiées dans la release GitHub `data-v1` avec leurs sommes SHA-256.
+Les tables traitées (~270 Mo) sont publiées dans la release GitHub `data-v1` (dépôt public) avec leurs sommes SHA-256. Les données d'origine sont sous licence CC BY 4.0 : citer Farreras et al., *Data in Brief* 55 (2024) 110738.
 
 ```powershell
-gh auth login                        # une fois (accès au dépôt privé)
-python -m src.data_sync fetch        # télécharge + vérifie dans data/processed/
+python -m src.data_sync fetch        # télécharge (HTTPS, sans compte) + vérifie dans data/processed/
 python -m src.data_sync verify       # revérifie à tout moment
-python -m pytest -q                  # les tests doivent passer (le test du parseur a besoin des données brutes)
+python -m pytest -q tests/test_splits.py tests/test_metrics.py   # le test du parseur exige les données brutes
 ```
 
 Les données brutes (zip Zenodo 271 Mo, MD5 `2a4a9a47bdeaa0c02304c40115c56273`) ne sont nécessaires que pour
@@ -42,6 +41,7 @@ re-parser : les extraire dans `data/raw/slicing-simulations/`, puis `python -m s
 | Parsing → parquet | `python -m src.parsing --workers 8` | ~10 min |
 | L1 Exploration | `python -m src.nb notebooks/L1_exploration.py` | ~2 min |
 | Splits (gelés) | `python -m src.splits` | < 1 min |
+| Expérience de fuite (L2) | `python -m src.leakage` → `results/leakage_experiment.csv` | ~10 s |
 | Baseline naïve | `python -m src.baselines_naive` | < 1 min |
 | Tableau de résultats | `python -m src.evaluate` → `results/metrics_all.csv` | < 1 min |
 

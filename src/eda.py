@@ -152,3 +152,58 @@ def fig_corr_matrix(f: pd.DataFrame, features: list[str]):
     ax.set_title("Corrélations entre variables d'entrée")
     fig.tight_layout()
     return fig
+
+
+# --------------------------------------------------------------------------
+# L2 figures
+# --------------------------------------------------------------------------
+def fig_leakage(res: pd.DataFrame):
+    """Estimated vs true error for the flow-level and the scenario-level split."""
+    g = res.groupby(["scheme", "kind"]).mae_log.agg(["mean", "std"])
+    labels = {"A_flow_split": "A : split aléatoire\npar flux", "B_scenario_split": "B : split\npar scénario"}
+    colors = {"estimated": "#2a78d6", "true": "#eb6834"}
+    names = {"estimated": "erreur estimée (test du split)", "true": "erreur réelle (scénarios jamais vus)"}
+    fig, ax = plt.subplots(figsize=(6.4, 4))
+    for i, kind in enumerate(["estimated", "true"]):
+        xs = np.arange(2) + (i - 0.5) * 0.36
+        vals = [g.loc[(s, kind), "mean"] for s in labels]
+        errs = [g.loc[(s, kind), "std"] for s in labels]
+        ax.bar(xs, vals, width=0.34, yerr=errs, color=colors[kind], label=names[kind], capsize=3, ecolor="#52514e")
+        for x, v, e in zip(xs, vals, errs):
+            ax.text(x, v + e + 0.01, f"{v:.2f}", ha="center", fontsize=9, color="#2b2b2a")
+    ax.set_xticks(range(2), list(labels.values()))
+    ax.set(ylabel="MAE sur log10(délai)", title="Un split par flux sous-estime l'erreur réelle")
+    ax.set_ylim(0, 0.58)                       # headroom so the legend never covers a bar label
+    ax.legend(loc="upper left")
+    ax.grid(axis="x", visible=False)
+    fig.tight_layout()
+    return fig
+
+
+def fig_splits(splits: pd.DataFrame, flows_by_slice: pd.DataFrame):
+    """Composition of the 4 splits: flows per slice, load and topology size."""
+    order = ["train", "val", "test", "test_unseen_topo"]
+    fig, ax = plt.subplots(1, 3, figsize=(15, 3.8))
+    bottom = np.zeros(len(order))
+    for t in SLICE_TYPES:
+        v = flows_by_slice.reindex(order)[t].to_numpy(dtype=float)
+        ax[0].bar(order, v, bottom=bottom, color=SLICE_COLORS[t], label=t, width=0.6, edgecolor="#fcfcfb", linewidth=1.5)
+        bottom += v
+    ax[0].set(title="Flux par split et par slice", ylabel="nb de flux")
+    ax[0].tick_params(axis="x", labelrotation=15)
+    ax[0].legend()
+    for s, c in zip(order, ["#2a78d6", "#1baf7a", "#eda100", "#eb6834"]):
+        x = splits[splits.split == s].scen_rho_max.clip(upper=4)
+        ax[1].hist(x, bins=np.linspace(0, 4, 41), histtype="step", lw=2, density=True, color=c, label=s)
+    ax[1].axvline(1, color="#52514e", lw=1, ls="--")
+    ax[1].set(title="Charge des scénarios (ρ max)", xlabel="ρ max du scénario (écrêté à 4)", ylabel="densité")
+    ax[1].legend(fontsize=8)
+    seen = splits[splits.split != "test_unseen_topo"].groupby("topology").n_core_nodes.first()
+    held = splits[splits.split == "test_unseen_topo"].groupby("topology").n_core_nodes.first()
+    bins = np.linspace(0, 60, 31)
+    ax[2].hist(seen.clip(upper=60), bins=bins, color="#52514e", alpha=0.55, label=f"topologies vues ({len(seen)})")
+    ax[2].hist(held.clip(upper=60), bins=bins, color="#eb6834", alpha=0.85, label=f"topologies inédites ({len(held)})")
+    ax[2].set(title="Taille des topologies", xlabel="nœuds du cœur (écrêté à 60)", ylabel="nb de topologies")
+    ax[2].legend()
+    fig.tight_layout()
+    return fig

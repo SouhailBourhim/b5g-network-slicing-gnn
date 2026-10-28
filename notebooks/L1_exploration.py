@@ -222,7 +222,7 @@ vt
 # %%
 with open(RESULTS_DIR / "eda_summary.json", "w", encoding="utf-8") as fh:
     json.dump(summary, fh, indent=1, ensure_ascii=False, default=str)
-print("écrit :", RESULTS_DIR / "eda_summary.json")
+print("écrit : results/eda_summary.json")
 
 # %% [markdown]
 # ## 7. Ce qu'il faut retenir (chiffres : `results/eda_summary.json`)

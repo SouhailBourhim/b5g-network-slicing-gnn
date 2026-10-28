@@ -68,3 +68,14 @@ Format : date — décision — raison (appuyée sur une donnée, un graphe ou u
 - Alternatives rejetées : Git LFS (quota gratuit 1 Go), dossier partagé (ni version ni vérification d'intégrité), chacun re-parse (10 min et risque de versions différentes).
 
 **D2.4 — Entraînement sur GPU** (RTX 5070 Laptop, torch 2.14.1+cu130). L'index cu128 s'arrête à torch 2.11 ; cu130 est supporté par le pilote (CUDA 13.1).
+
+## 2026-10-28 — Étape 2 : formulation et expérience de fuite (L2)
+
+**D2.5 — La fuite est mesurée, pas seulement argumentée** (`src/leakage.py`, 1 500 scénarios hors topologies inédites, 20 % de scénarios « jamais vus » E, LightGBM aux paramètres fixes non réglés, 3 graines).
+- Split aléatoire par flux (A) : erreur annoncée MAE_log = 0,127 ± 0,005, erreur réelle sur E = 0,399 ± 0,013, soit un facteur d'optimisme de **3,15**. 100 % des flux de test ont un frère dans le train.
+- Split par scénario (B) : annoncée 0,358 ± 0,024, réelle 0,410 ± 0,017 (facteur 1,14, écart de l'ordre de 2 écarts-types entre graines : variance entre scénarios, pas de fuite ; 0 % de flux de test avec un frère).
+- Conséquence : toute évaluation du projet se fait avec les splits par scénario. Alternative rejetée : split aléatoire par flux (rapporterait 0,13 là où l'erreur réelle est 0,40).
+
+**D2.6 — Le dépôt est public (décision de Souhail) : audit avant exposition.** Aucun jeton, mot de passe ou clé dans les fichiers suivis (recherche par motifs). Un chemin local contenant le nom d'utilisateur Windows apparaissait dans la sortie d'un notebook : corrigé (affichage d'un chemin relatif). L'adresse e-mail de commit reste visible dans l'historique (existait déjà). `fetch` des données passe par HTTPS sans compte ; seul `publish` exige `gh`.
+
+**D2.7 — Répartition de l'équipe en trois volets** (`docs/plan_de_travail_equipe.docx`) : A = GNN/GPU (Souhail), B = réseau/événements, C = données/ML classique. L2, que nous avions déjà commencé, est terminé ici plutôt que laissé à C ; C le reprend pour le défendre.

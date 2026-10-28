@@ -2,8 +2,8 @@
 
 The processed parquet files (~270 MB) are published as assets of a GitHub release
 (tag data-vN) with a SHA256SUMS file. Teammates download and verify them instead of
-re-parsing the raw archives. Requires the GitHub CLI (`gh auth login`) and read
-access to the (private) repository.
+re-parsing the raw archives. The repository is public: `fetch` is a plain HTTPS
+download (no account needed). Only `publish` needs the GitHub CLI (`gh auth login`).
 
   python -m src.data_sync fetch                 # download + verify data-v1 (everyone)
   python -m src.data_sync verify                # re-check local files against SHA256SUMS
@@ -15,6 +15,8 @@ import argparse
 import hashlib
 import subprocess
 import sys
+import urllib.request
+from pathlib import Path
 
 from src.config import PROCESSED_DIR
 
@@ -48,23 +50,42 @@ def publish(tag: str):
        *[str(p) for p in paths], str(SUMS))
 
 
-def verify() -> bool:
+def verify(dest: Path = PROCESSED_DIR) -> bool:
     ok = True
-    for line in SUMS.read_text(encoding="utf-8").splitlines():
+    for line in (dest / "SHA256SUMS").read_text(encoding="utf-8").splitlines():
         digest, name = line.split()
-        p = PROCESSED_DIR / name
+        p = dest / name
         good = p.exists() and sha256(p) == digest
         ok &= good
         print(f"{'OK ' if good else 'BAD'} {name}")
     return ok
 
 
-def fetch(tag: str):
-    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    gh("release", "download", tag, "--repo", REPO, "--dir", str(PROCESSED_DIR), "--clobber")
-    if not verify():
-        sys.exit("checksum mismatch: delete the BAD files and fetch again")
-    print(f"data {tag} ready in {PROCESSED_DIR}")
+def download(url: str, target: Path):
+    """Stream a release asset to disk (large files: never held in memory)."""
+    with urllib.request.urlopen(url) as r, open(target, "wb") as f:
+        while chunk := r.read(1 << 20):
+            f.write(chunk)
+
+
+def fetch(tag: str, dest: Path = PROCESSED_DIR, only: list[str] | None = None):
+    """Download SHA256SUMS then every parquet that is missing or fails its checksum."""
+    dest.mkdir(parents=True, exist_ok=True)
+    base = f"https://github.com/{REPO}/releases/download/{tag}"
+    download(f"{base}/SHA256SUMS", dest / "SHA256SUMS")
+    for line in (dest / "SHA256SUMS").read_text(encoding="utf-8").splitlines():
+        digest, name = line.split()
+        if only and name not in only:
+            continue
+        p = dest / name
+        if p.exists() and sha256(p) == digest:
+            print(f"already up to date: {name}")
+            continue
+        print(f"downloading {name} ...")
+        download(f"{base}/{name}", p)
+        if sha256(p) != digest:
+            sys.exit(f"checksum mismatch for {name}: delete it and fetch again")
+    print(f"data {tag} ready in {dest}")
 
 
 def main():
