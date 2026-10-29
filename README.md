@@ -43,6 +43,11 @@ re-parser : les extraire dans `data/raw/slicing-simulations/`, puis `python -m s
 | Splits (gelés) | `python -m src.splits` | < 1 min |
 | Expérience de fuite (L2) | `python -m src.leakage` → `results/leakage_experiment.csv` | ~10 s |
 | Baseline naïve | `python -m src.baselines_naive` | < 1 min |
+| Graphes PyG (L5) | `python -m src.graphs` → `data/processed/graphs/` (539 Mo) | ~10 s |
+| GNN (volet A, **GPU**) | `python -m src.train_gnn --model gnn_gatv2 --seed 0` | ~2,4 h |
+| Ablation K = 0 | `python -m src.train_gnn --model gnn_k0 --seed 0` | < 1 min |
+| MLP plat (contrôle) | `python -m src.train_mlp --seed 0` (`--device cpu` si le GPU est pris) | ~11 min |
+| L5 GNN | `python -m src.nb notebooks/L5_gnn.py` | ~1 min |
 | Tableau de résultats | `python -m src.evaluate` → `results/metrics_all.csv` | < 1 min |
 
 ## Contrats entre les parties (`src/contracts.py`)

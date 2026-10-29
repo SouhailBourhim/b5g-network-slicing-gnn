@@ -2,6 +2,9 @@
 
 Format : date — décision — raison (appuyée sur une donnée, un graphe ou un principe réseau) — alternative rejetée.
 
+Auteur : sauf mention contraire, les décisions ci-dessous sont de **Souhail Bourhim (SB)**. Chaque coéquipier
+signe les siennes avec ses initiales (volet B, volet C).
+
 ---
 
 ## 2026-10-28 — Étape 0 : données
@@ -113,3 +116,22 @@ Format : date — décision — raison (appuyée sur une donnée, un graphe ou u
 - Constat : le tercile « bas » n'est pas peu chargé. ρ_max va de 0,45 à 1,28 et 85,4 % de ses flux sont déjà en événement (τ = 1,05). Le décalage est donc « surcharge modérée → forte », pas « réseau libre → saturé ». À écrire ainsi dans le rapport.
 - Baselines (MAE_log, entraînées sur shift_train) id / mid / high : naïve 0,567 / 0,844 / 1,087 ; analytic_mm1 0,603 / 0,588 / 0,745 ; analytic_mm1k_link_cal 0,622 / 0,652 / 0,793. Mêmes tendances en ne gardant que les topologies vues (naïve 1,061, mm1 0,756 sur high).
 - La calibration change avec le régime : (a, b) = (0,520 ; 0,981) sur shift_train contre (1,740 ; 1,318) sur le train complet.
+## 2026-10-29 — Volet A : premiers résultats et ablations (L5)
+
+**D3.4 — Premier entraînement complet de `gnn_gatv2`** (graine 0, 868 481 paramètres, hidden 128, K = 3, 4 têtes, dropout 0,1, lr 1e-3, weight decay 1e-5, lots de 32 graphes). 76 époques en 141 min sur la RTX 5070, meilleure époque 61, arrêt précoce ensuite. **MAE_log : 0,128 val / 0,128 test / 0,115 topologies inédites** (`results/metrics_all.csv`). Surapprentissage contrôlé et mesuré (figure `L5_02_courbes_apprentissage.png`) : train et val descendent ensemble jusqu'à l'époque ~36, puis val plafonne à 0,075 de MSE pendant que train continue vers 0,05 — l'écart reste faible et l'arrêt précoce tranche à 61.
+
+**D3.5 — Contrôle « mêmes entrées, sans graphe » : `mlp_flat`** (`src/train_mlp.py`, 4 225 paramètres sur les 27 `ALL_FEATURES`, scaler ajusté sur train, même boucle d'entraînement). 76 époques en 11 min **sur CPU** (le GPU était occupé par le GNN). MAE_log : 0,407 val / 0,401 test / 0,371 inédites. Le GNN fait donc **3,1× mieux à information comparable**, et 6,4× mieux que la baseline naïve (0,82 test).
+
+**D3.6 — L'ablation K = 0 ne mesure pas le passage de messages seul : il faut la lire avec `mlp_flat`.** `gnn_k0` (K = 0, 52 097 paramètres, 25 s, meilleure époque 7) donne 0,785 val / 0,792 test / 0,735 inédites, à peine mieux que la baseline naïve (0,815 val). Explication : avec K = 0 il n'y a aucune convolution, donc les nœuds lien et les attributs de saut sont **déconnectés de la lecture** — le modèle ne voit que les 8 features du nœud flux (type de slice, δ, prov_ratio, débit, taille de paquet, longueur du chemin), c'est-à-dire **ni ρ, ni capacité, ni part WFQ, ni terme de file**. `gnn_k0` mesure donc l'apport du **graphe entier** (structure + information portée par les liens et les sauts), pas celui du passage de messages.
+- Lecture correcte, en encadrant avec les deux ablations : 0,792 → 0,401 (`gnn_k0` → `mlp_flat`) = ce que récupèrent les **agrégats calculés à la main** le long du chemin (ρ max/moyen/somme, sommes M/M/1 et M/M/1/K, part WFQ minimale) ; 0,401 → 0,128 (`mlp_flat` → `gnn_gatv2`) = ce que récupère en plus le **passage de messages appris**, à information équivalente. C'est ce second chiffre qui répond à H1.
+- Confirme aussi D1.5 : `gnn_k0` ≈ baseline naïve, donc les propriétés propres d'un flux ne prédisent presque pas son délai ; c'est la charge partagée qui décide.
+
+**D3.7 — Tous les modèles font *mieux* sur `test_unseen_topo` que sur `test` : c'est une propriété du jeu, pas une meilleure généralisation.** naïf 0,823 → 0,790 ; `gnn_k0` 0,792 → 0,735 ; `mlp_flat` 0,401 → 0,371 ; `gnn_gatv2` 0,128 → 0,115. La baseline naïve prédit une constante par type de slice et ne peut donc pas « mieux généraliser » à des topologies inédites : l'écart vient de ce que les topologies retenues sont moins chargées (D2.1 : ρ max médian 1,35 contre 1,63). **H3 ne peut pas se lire sur cette colonne telle quelle** ; il faut la comparaison à charge égale prévue en L6.
+
+**D3.8 — Budget GPU : pas de recherche d'hyperparamètres étendue, et on le dit.** Une exécution complète de `gnn_gatv2` coûte 2,4 h sur la machine disponible ; la grille de 12 à 24 configurations prévue en A5 coûterait 30 à 60 h de GPU. Décision : garder la configuration initiale (valeurs usuelles pour un GNN de cette taille), la défendre par les courbes d'apprentissage (convergence propre, arrêt précoce à 61, pas de divergence train/val), et dépenser le budget sur ce qui répond aux hypothèses — ablations et répétitions — plutôt que sur un réglage fin.
+- Alternative rejetée : une grille réduite sur sous-échantillon, qui classerait les configurations sur un proxy (moins de scénarios, moins d'époques) sans garantie que le classement tienne à plein budget. Mieux vaut une configuration non réglée et annoncée qu'un réglage dont on ne peut pas défendre la validité.
+
+**D3.9 — Répétitions : 3 graines sur `mlp_flat` (CPU), 1 seule sur les GNN (GPU), et on s'appuie sur le bootstrap pour l'incertitude.** `mlp_flat` sur 3 graines donne **0,4032 ± 0,0020** de MAE_log sur le test (graines 0/1/2 : 0,4011 / 0,4050 / 0,4035). L'écart-type entre graines vaut donc **0,5 % de la valeur**, alors que l'écart entre `mlp_flat` et `gnn_gatv2` est de 0,275 — plus de cent fois l'écart-type. Avec 934 542 flux d'entraînement et 201 953 flux de test, le bruit de graine est négligeable devant les effets qu'on annonce.
+- Décision : ne pas dépenser 2,4 h de GPU par graine supplémentaire de GNN. L'incertitude du tableau final vient du **bootstrap sur les scénarios** (volet C, `src/bootstrap.py`), qui mesure en plus la variabilité due à l'échantillon de scénarios — celle qui compte vraiment ici, puisque les flux d'un même scénario sont corrélés (D2.1).
+- Honnêteté : cette mesure est faite sur `mlp_flat`, pas sur le GNN. Elle montre que le bruit de graine est petit **sur ce jeu et pour un modèle entraîné dessus**, pas que celui du GNN est identique (868 481 paramètres contre 4 225, et une courbe de val plus bruitée). À dire tel quel si la question est posée.
+- Alternative rejetée : annoncer une moyenne ± écart-type sur 5 graines de GNN (12 h de GPU) pour un intervalle que le bootstrap donne gratuitement et sur la bonne source de variabilité.
