@@ -2,7 +2,7 @@
 
 > Fichiers : `src/baselines_analytic.py`, `src/events.py`, `src/events_viz.py`, `data/processed/events.parquet`,
 > `results/L4_tau_choice.csv`, `results/L4_coverage.csv`, `reports/figures/L4_01_scenarios.png`.
-> Décisions : `JOURNAL.md`, entrées D3.1 à D3.3. Tous les chiffres ci-dessous viennent de ces fichiers.
+> Décisions : `JOURNAL.md`, entrées D4.1 à D4.4. Tous les chiffres ci-dessous viennent de ces fichiers.
 
 ## 1. Ce qu'on a fait (en bref)
 

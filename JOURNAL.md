@@ -95,22 +95,24 @@ signe les siennes avec ses initiales (volet B, volet C).
 
 ## 2026-10-29 — Volet B (réseau et événements)
 
-**D3.1 — Baselines analytiques : M/M/1 simple bat M/M/1/K et WFQ ; calibration sans gain net (T.).**
+*(Renumérotées D4.x : D3.1-D3.3 étaient déjà prises par le volet A dans `a4656b5`. Contenu inchangé.)*
+
+**D4.1 — Baselines analytiques : M/M/1 simple bat M/M/1/K et WFQ ; calibration sans gain net (T.).**
 - Constat (MAE_log test) : analytic_mm1 0,649 ; analytic_mm1k_link 0,839 ; analytic_mm1k_wfq 1,141 ; analytic_mm1k_link_cal 0,672 (a = 1,740, b = 1,318, ajustés sur train) ; naïve 0,822.
 - Erreur signée (val) : M/M/1/K sous-estime fortement quand ρ_max > 1,05 (−0,67 à −0,80 en log10) ; M/M/1 surestime près de ρ ≈ 1 (+0,73) puis sous-estime (−0,14 à −0,31).
 - Alternative rejetée : choisir la meilleure des trois sans le dire ; les quatre sont publiées.
 
-**D3.2 — Seuil de congestion τ = 1,05, choisi sur train (T.).**
+**D4.2 — Seuil de congestion τ = 1,05, choisi sur train (T.).**
 - Raison : le plus grand saut de la médiane de log10(délai) entre deux classes de ρ_max est +0,742 entre (1,0 ; 1,05] et (1,05 ; 1,1] (results/L4_tau_choice.csv). Le coude est à 1,05, pas à 1,0.
 - Alternative rejetée : τ = 1,0 (seuil théorique) ; le saut y est de +0,134 seulement.
 - Sensibilité : colonnes is_event_tau_{0_9, 1_0, 1_05, 1_1, 2_0}.
 
-**D3.3 — Les « événements » sont la majorité des flux : 82,9 % sur test (T.).**
+**D4.3 — Les « événements » sont la majorité des flux : 82,9 % sur test (T.).**
 - Constat : 85,4 % des flux de train ont ρ_max ≥ 1 (médiane 1,245). Congestion à τ = 1,05 : 82,2 % des flux de train ; famine (part WFQ < 1e-3 sur un lien à ρ ≥ τ) : 10,7 % ; aucun cas « famine seule » car la famine implique ρ ≥ τ.
 - Conséquence : « événement vs non-événement » compare presque tout le jeu à une petite minorité peu chargée. Le palier « sévère » is_event_tau_2_0 (16,1 % des flux de test) est la comparaison utile ; à discuter avec l'équipe avant L6.
 - Erreur MAE_log test, non-événement / événement / sévère : naïve 1,322 / 0,719 / 1,098 ; analytic_mm1 0,363 / 0,708 / 0,983 ; analytic_mm1k_wfq 2,448 / 0,871 / 0,612.
 
-**D3.4 — Découpage « décalage de charge » (B4) : entraîner sur le tercile bas de ρ_max-scénario, tester sur milieu et haut (T.).**
+**D4.4 — Découpage « décalage de charge » (B4) : entraîner sur le tercile bas de ρ_max-scénario, tester sur milieu et haut (T.).**
 - Règle : coupures Q1 = 1,283 et Q2 = 1,983 = terciles de `scen_rho_max` sur les scénarios de **train d'origine** ; `test_unseen_topo` exclu. Groupes : shift_train (1 412 scénarios, 265 055 flux), shift_val (303), shift_test_id (302), shift_test_mid (2 014, 498 153 flux), shift_test_high (2 016, 465 591 flux). Fichiers : `results/shift_splits.csv`, `results/shift_summary.json`, code `src/shift.py`.
 - Les scénarios mid/high pris dans train, val ou test d'origine sont des tests légitimes : un modèle « shift » ne s'entraîne jamais dessus. Colonne `topology_in_shift_train` pour isoler l'effet charge (95,4 % des mid et 85,8 % des high sont sur des topologies vues).
 - Constat : le tercile « bas » n'est pas peu chargé. ρ_max va de 0,45 à 1,28 et 85,4 % de ses flux sont déjà en événement (τ = 1,05). Le décalage est donc « surcharge modérée → forte », pas « réseau libre → saturé ». À écrire ainsi dans le rapport.
@@ -135,3 +137,14 @@ signe les siennes avec ses initiales (volet B, volet C).
 - Décision : ne pas dépenser 2,4 h de GPU par graine supplémentaire de GNN. L'incertitude du tableau final vient du **bootstrap sur les scénarios** (volet C, `src/bootstrap.py`), qui mesure en plus la variabilité due à l'échantillon de scénarios — celle qui compte vraiment ici, puisque les flux d'un même scénario sont corrélés (D2.1).
 - Honnêteté : cette mesure est faite sur `mlp_flat`, pas sur le GNN. Elle montre que le bruit de graine est petit **sur ce jeu et pour un modèle entraîné dessus**, pas que celui du GNN est identique (868 481 paramètres contre 4 225, et une courbe de val plus bruitée). À dire tel quel si la question est posée.
 - Alternative rejetée : annoncer une moyenne ± écart-type sur 5 graines de GNN (12 h de GPU) pour un intervalle que le bootstrap donne gratuitement et sur la bonne source de variabilité.
+
+**D3.10 — H2 sur nos modèles : la bonne frontière est « voit la charge ou non », et la première moitié de H2 est fausse sur ce jeu.** Avec `events.parquet` du volet B (τ = 1,05), MAE_log test non-événement / événement : `gnn_gatv2` 0,121 / 0,129 (**+0,008**) ; `mlp_flat` 0,290 / 0,427 (+0,136) ; `analytic_mm1` 0,363 / 0,708 (+0,345) ; `gnn_k0` 1,244 / 0,699 (−0,545) ; naïve 1,322 / 0,719 (−0,603).
+- **Volet comparatif de H2 confirmé, et c'est l'argument le plus fort du GNN** : il est quasi insensible à la frontière (+0,008) là où le modèle plat à information équivalente se dégrade 17 fois plus. Un orchestrateur s'intéresse précisément au régime chargé.
+- **Volet « tous les modèles se dégradent » infirmé** : naïve et `gnn_k0` font *mieux* sur les événements. Explication : 82,9 % des flux du test sont en événement (volet B, D3.3), donc une constante apprise sur train est calée sur la majorité — c'est-à-dire sur les flux en événement — et devient fausse sur la minorité non chargée. L'hypothèse H2 supposait implicitement des événements rares ; à réécrire dans le rapport au lieu de la déclarer « vérifiée ».
+- **Au palier sévère du volet B (`is_event_tau_2`, 16 % des flux), H2 tient en entier** : reste / sévère = naïve 0,770 / 1,098 (+0,328) ; `gnn_k0` 0,737 / 1,078 (+0,340) ; `analytic_mm1` 0,585 / 0,983 (+0,398) ; `mlp_flat` 0,373 / 0,561 (+0,188) ; `gnn_gatv2` 0,124 / 0,145 (**+0,021**). L'inversion à τ = 1,05 était donc bien un artefact de proportion. Le GNN se dégrade 9 fois moins que le modèle plat.
+- Calculé dans `notebooks/L5_gnn.py` à partir de `evaluation_frame()` et `events.parquet`, **pas** dans `src/evaluate.py`, qui ne produit que `event` / `non_event` depuis `is_event`. L'y ajouter servirait aux trois volets mais touche un fichier commun (§4.1 du plan) : à décider à trois.
+- Note pour le volet B : la colonne s'appelle `is_event_tau_2` et non `is_event_tau_2_0` comme l'indique D4.2 (`tau_col()` formate en `%g`, donc 2.0 → « 2 » et 1.0 → « 1 »). Documentation à corriger, code correct.
+
+**D3.11 — Pas d'ablation par groupe de variables sur le GNN, et pas de GNN sur le découpage « décalage de charge » (B4).** Chacune demanderait un entraînement complet de 2,4 h (4 groupes de variables = ~10 h ; shift = 2,4 h de plus).
+- Raison : même arbitrage que D3.8 — le budget GPU va aux expériences qui tranchent une hypothèse (K = 0, contrôle plat, événements), pas à celles qui la nuancent.
+- Compensation : le volet C fait l'ablation par groupe sur LightGBM avec les mêmes `FEATURE_GROUPS`, ce qui répond à « quelles variables comptent » sans mobiliser le GPU. Le volet B a déjà mesuré les baselines sur le décalage de charge.

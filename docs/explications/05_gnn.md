@@ -122,6 +122,48 @@ prévue coûterait 30 à 60 h de GPU. On garde la configuration initiale et on l
 d'apprentissage, plutôt que d'annoncer un réglage fait sur un sous-échantillon dont rien ne garantit qu'il tienne à
 plein budget.
 
+**H2 — comportement sur les événements** (avec `data/processed/events.parquet` du volet B, τ = 1,05). MAE_log sur
+test :
+
+| Modèle | non-événement (34 632 flux) | événement (167 321 flux) | dégradation |
+|---|---|---|---|
+| `naive_median_slice` | 1,322 | 0,719 | −0,603 |
+| `gnn_k0` | 1,244 | 0,699 | −0,545 |
+| `analytic_mm1` (volet B) | 0,363 | 0,708 | +0,345 |
+| `mlp_flat` | 0,290 | 0,427 | +0,136 |
+| **`gnn_gatv2`** | **0,121** | **0,129** | **+0,008** |
+
+La frontière n'est pas « modèle plat contre graphe », c'est **« voit la charge ou non »** :
+- Les modèles qui voient la charge se dégradent sur les événements, comme le prédit H2 — mais le GNN
+  **quasiment pas** (+0,008), alors que le modèle plat à information équivalente se dégrade **17 fois plus**
+  (+0,136). Le volet comparatif de H2 est donc confirmé, et c'est l'argument le plus fort du GNN : il reste bon
+  là où le réseau va mal, ce qui est exactement le régime qui intéresse un orchestrateur.
+- Les modèles qui ne voient pas la charge (naïve, `gnn_k0`) font *mieux* sur les événements. Ce n'est pas une
+  qualité : comme **82,9 % des flux du test sont en événement**, leur constante apprise sur train est calée sur
+  cette majorité, et devient franchement fausse sur la minorité non-événement (1,322 pour la naïve).
+
+**Au palier τ = 1,05, la première moitié de H2 (« tous les modèles se dégradent ») est donc fausse** — mais c'est
+un artefact de proportion, pas une propriété des modèles. Le volet B propose un palier **sévère**
+(`is_event_tau_2`, 16 % des flux), et là H2 tient en entier (MAE_log test, reste / sévère) :
+
+| Modèle | reste | sévère (τ = 2,0) | dégradation |
+|---|---|---|---|
+| `naive_median_slice` | 0,770 | 1,098 | +0,328 |
+| `gnn_k0` | 0,737 | 1,078 | +0,340 |
+| `analytic_mm1` (volet B) | 0,585 | 0,983 | +0,398 |
+| `mlp_flat` | 0,373 | 0,561 | +0,188 |
+| **`gnn_gatv2`** | **0,124** | **0,145** | **+0,021** |
+
+Presque tous les modèles se dégradent, y compris ceux qui « s'amélioraient » à τ = 1,05, et le classement de la
+robustesse se confirme en plus net : le GNN se dégrade **9 fois moins** que le modèle plat à information
+équivalente. C'est l'argument opérationnel le plus fort du volet A — le GNN reste bon dans le régime chargé, celui
+qui décide une admission de slice. (Seul `analytic_mm1k_wfq` s'inverse encore, −0,631 : il surestime tellement les
+délais qu'il « gagne » là où ils sont réellement énormes.)
+
+Ce palier est calculé dans `notebooks/L5_gnn.py` et non dans `src/evaluate.py`, qui ne produit que
+`event` / `non_event` : l'ajouter au fichier commun profiterait aux trois volets, mais c'est une décision d'équipe
+(§4.1 du plan).
+
 **Limite assumée : le test « topologies inédites » n'est pas plus dur, il est plus facile** (D3.7). Tous les modèles
 y font mieux, **y compris la baseline naïve** (0,822 → 0,790) qui prédit pourtant une constante par slice et ne peut
 pas « mieux généraliser ». L'écart vient de la charge : ρ max médian 1,35 contre 1,63 (D2.1). H3 ne se lit donc pas

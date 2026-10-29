@@ -6,7 +6,7 @@
 # contrôles : le même réseau sans passage de messages (`gnn_k0`) et un MLP plat sur les mêmes informations
 # résumées à la main (`mlp_flat`).
 #
-# Explication rédigée : `docs/explications/05_gnn.md`. Décisions : `JOURNAL.md` (D3.1 à D3.8).
+# Explication rédigée : `docs/explications/05_gnn.md`. Décisions : `JOURNAL.md` (D3.1 à D3.11, volet B : D4.1 à D4.4).
 
 # %%
 import pandas as pd
@@ -163,16 +163,86 @@ print(f"mlp_flat -> gnn_gatv2 : {t['mlp_flat']:.3f} -> {t['gnn_gatv2']:.3f}  "
       f"(x{t['mlp_flat']/t['gnn_gatv2']:.1f})   passage de messages appris")
 
 # %% [markdown]
-# ## 5. Ce que ce tableau ne dit pas encore
+# ## 5. H2 — comportement sur les événements (avec `events.parquet` du volet B)
+#
+# τ = 1,05, congestion ou famine (volet B, D4.2/D4.3). Attention : les événements sont **la majorité** des flux
+# (82,9 % du test), donc `non_event` est une petite minorité peu chargée.
+
+# %%
+d = pd.read_csv(RESULTS_DIR / "metrics_all.csv")
+t = d[(d.split == "test") & (d.slice_type == "ALL")]
+h2 = t.pivot_table(index="model", columns="subset", values="mae_log", aggfunc="mean")
+h2 = h2[["all", "non_event", "event"]].sort_values("all", ascending=False)
+h2["dégradation"] = h2["event"] - h2["non_event"]
+print("MAE_log sur test par sous-ensemble :")
+print(h2.round(3).to_string())
+print("\nnombre de flux :")
+print(t[t.model == "gnn_gatv2"][["subset", "n"]].to_string(index=False))
+
+# %% [markdown]
+# **Deux familles de comportement, et la frontière n'est pas « plat vs graphe » mais « voit la charge ou non ».**
+#
+# - Les modèles qui **voient la charge** se dégradent sur les événements, comme le prédit H2 : `analytic_mm1`
+#   +0,345, `mlp_flat` +0,136, `gnn_gatv2` **+0,008**. Le GNN est donc quasi insensible à la frontière
+#   événement / non-événement, et le modèle plat à information équivalente se dégrade **17 fois plus** : c'est le
+#   volet comparatif de H2, confirmé.
+# - Les modèles qui **ne voient pas la charge** (`naive_median_slice` −0,603, `gnn_k0` −0,545) font au contraire
+#   *mieux* sur les événements. Ce n'est pas une qualité : comme 82,9 % des flux sont en événement, leur constante
+#   apprise sur train est calée sur la majorité, donc sur les flux en événement. Elle est alors franchement
+#   fausse sur la minorité non-événement (1,322 pour la naïve).
+#
+# **Donc la première moitié de H2 (« tous les modèles se dégradent ») est fausse telle quelle**, et il faut
+# l'écrire ainsi : elle suppose implicitement que les événements sont rares, ce que ce jeu contredit.
+
+# %% [markdown]
+# ### Le palier « sévère » (τ = 2,0)
+#
+# Puisque 82,9 % des flux sont en événement, le volet B propose un palier plus exigeant (`is_event_tau_2`,
+# ~16 % des flux) comme comparaison réellement informative. `src/evaluate.py` ne produit que `event` /
+# `non_event` depuis `is_event` ; plutôt que de modifier un fichier commun (§4.1 du plan), on recalcule ici le
+# palier à partir de `evaluation_frame()` et de `events.parquet`.
+
+# %%
+from src.contracts import load_events
+from src.evaluate import evaluation_frame
+from src.metrics import regression_metrics
+
+frame = evaluation_frame().merge(
+    load_events()[["scenario_id", "flow_id", "is_event_tau_2"]], on=["scenario_id", "flow_id"], how="left")
+frame = frame[frame.split == "test"]
+rows = [{"model": mo, "seed": sd, "palier": "sévère (τ=2,0)" if sv else "reste",
+         "mae_log": regression_metrics(part.y, part.pred)["mae_log"], "n": len(part)}
+        for (mo, sd, sv), part in frame.groupby(["model", "seed", "is_event_tau_2"])]
+sev = pd.DataFrame(rows).pivot_table(index="model", columns="palier", values="mae_log", aggfunc="mean")
+sev["dégradation"] = sev["sévère (τ=2,0)"] - sev["reste"]
+print("MAE_log sur test, palier sévère vs reste (moyenne sur les graines) :")
+print(sev.sort_values("reste", ascending=False).round(3).to_string())
+print("\nflux :", frame.groupby("is_event_tau_2").scenario_id.size().to_dict(), "(par modèle × graine)")
+
+# %% [markdown]
+# **Au palier sévère, H2 tient enfin en entier.** Presque tous les modèles se dégradent, y compris ceux qui
+# s'étaient « améliorés » à τ = 1,05 : naïve +0,328, `gnn_k0` +0,340. L'inversion précédente était donc bien un
+# artefact de proportion (82,9 % d'événements), pas une propriété des modèles. Le volet B avait raison de proposer
+# ce palier comme la comparaison utile.
+#
+# Et le classement de la robustesse reste le même, en plus net : `gnn_gatv2` +0,021 contre `mlp_flat` +0,188,
+# soit **9 fois moins de dégradation à information équivalente**. Seul `analytic_mm1k_wfq` s'inverse encore
+# (−0,631), parce qu'il surestime massivement les délais : il « gagne » là où les délais sont réellement énormes.
+#
+# **Conclusion pour H2** : la dégradation sur les événements est réelle et générale (palier sévère), et le GNN y
+# résiste nettement mieux que le modèle plat — ce qui est l'argument opérationnel le plus fort du volet A, puisque
+# c'est le régime chargé qui intéresse un orchestrateur.
+
+# %% [markdown]
+# ## 6. Ce que ce tableau ne dit pas encore
 #
 # - **Les topologies inédites ne sont pas plus difficiles, elles sont moins chargées.** Tous les modèles y font
 #   mieux, *y compris la baseline naïve* (0,822 → 0,790) qui prédit pourtant une constante par slice et ne peut pas
 #   « mieux généraliser ». ρ max médian : 1,35 contre 1,63 (D2.1). **H3 ne se lit pas sur cette colonne** ; L6 la
 #   reprendra à charge égale.
-# - **H2 (événements)** attend `data/processed/events.parquet` (volet B) : `src/evaluate.py` produira alors les
-#   sous-ensembles `event` / `non_event`.
+# - **Le palier « sévère » est calculé ici, pas dans `src/evaluate.py`**, qui ne produit que `event` / `non_event`
+#   depuis `is_event`. L'ajouter au fichier commun serait utile à tout le monde (volets B et C compris) :
+#   à décider à trois (§4.1 du plan) plutôt que de modifier un contrat partagé unilatéralement.
+# - **Le découpage « décalage de charge »** (`results/shift_splits.csv`, volet B) n'a pas été utilisé pour le GNN :
+#   cela demanderait un entraînement complet de plus (2,4 h).
 # - **L'incertitude** (plusieurs graines ou bootstrap sur les scénarios) est traitée en L6.
-
-# %%
-print("sous-ensembles disponibles dans metrics_all.csv :",
-      sorted(pd.read_csv(RESULTS_DIR / "metrics_all.csv").subset.unique()))
