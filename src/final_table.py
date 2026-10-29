@@ -33,6 +33,14 @@ def md(df: pd.DataFrame, title: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def seeds_note(d: pd.DataFrame) -> str:
+    """Note construite depuis les donnees : le nombre de graines par modele evolue."""
+    n = d.groupby("model").seed.nunique()
+    multi = ", ".join(f"{m} ({k})" for m, k in n[n > 1].sort_values(ascending=False).items())
+    head = f"Remarque : nombre de graines par modele — {multi}" if multi else "Remarque :"
+    return head + f" ; les {int((n == 1).sum())} autres n'ont qu'une graine (pas d'ecart-type).\n"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--include-ablations", action="store_true")
@@ -81,7 +89,7 @@ def main():
         md(t2, "MSE_log (moyenne ± ecart-type sur graines), toutes slices"),
         md(t3, "MAE_log par type de slice, test, tous les flux"),
         md(t4, "MAE_log par type de slice, test, evenements uniquement"),
-        "Remarque : seul lgbm a 5 graines ; les autres modeles ont une seule graine (pas d'ecart-type).\n"])
+        seeds_note(d)])
     (RESULTS_DIR / "table_final.md").write_text(out, encoding="utf-8")
     pd.set_option("display.width", 220, "display.max_columns", 20)
     print(t1.to_string()); print(); print(t3.to_string()); print(); print(t4.to_string())

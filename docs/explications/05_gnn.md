@@ -11,7 +11,8 @@ qui fait circuler de l'information le long de ces arêtes — les liens écouten
 flux écoutent les liens de leur chemin — et qui prédit à la fin le délai de chaque flux en log10. Pour savoir si ce
 mécanisme apporte vraiment quelque chose, on l'a comparé à deux contrôles : le **même réseau privé de passage de
 messages** (`gnn_k0`) et un **MLP plat** recevant les mêmes informations résumées à la main (`mlp_flat`).
-Résultat : 0,128 de MAE_log sur le test, contre 0,403 pour le MLP plat et 0,822 pour la baseline naïve.
+Résultat : 0,128 de MAE_log sur le test, contre 0,352 pour le meilleur modèle plat (`lgbm`, volet C), 0,403 pour
+le MLP plat et 0,822 pour la baseline naïve.
 
 **Définitions utiles.**
 - *Graphe hétérogène* : un graphe où tous les nœuds ne sont pas de même nature (ici flux et liens), chacun avec ses
@@ -163,6 +164,24 @@ délais qu'il « gagne » là où ils sont réellement énormes.)
 Ce palier est calculé dans `notebooks/L5_gnn.py` et non dans `src/evaluate.py`, qui ne produit que
 `event` / `non_event` : l'ajouter au fichier commun profiterait aux trois volets, mais c'est une décision d'équipe
 (§4.1 du plan).
+
+**H1 et H3, tranchées avec les intervalles de confiance du volet C** (bootstrap sur les scénarios, B = 1 000,
+`results/bootstrap_ci.csv` et `bootstrap_diff.csv`). Depuis l'arrivée du volet C, le meilleur modèle plat n'est plus
+`mlp_flat` mais **`lgbm`** :
+
+| Modèle | MAE_log test [IC 95 %] |
+|---|---|
+| **`gnn_gatv2`** | **0,128 [0,118 ; 0,138]** |
+| `lgbm` (volet C) | 0,352 [0,327 ; 0,379] |
+| `mlp_flat` | 0,403 [0,377 ; 0,430] |
+
+- **H1 confirmée contre le meilleur adversaire** : différence appariée `gnn_gatv2 − lgbm` = **−0,2243
+  [−0,2484 ; −0,2023]**, le GNN devant dans **100 %** des rééchantillonnages. On annonce donc **× 2,75 contre
+  `lgbm`**, pas × 3,1 contre `mlp_flat` : c'est plus conservateur et on se compare au plus fort.
+- **H3 n'est pas confirmée.** À charge égale (repondération par classes de ρ max du test), l'écart
+  « topologies inédites − test » du GNN est de **−0,0039 [−0,0189 ; +0,0119]** : l'intervalle contient 0. Le GNN
+  **transfère sans perte** à des topologies jamais vues — ce qui est déjà le comportement attendu d'un modèle
+  inductif — mais rien ne permet de dire qu'il y généralise *mieux* que les autres.
 
 **Limite assumée : le test « topologies inédites » n'est pas plus dur, il est plus facile** (D3.7). Tous les modèles
 y font mieux, **y compris la baseline naïve** (0,822 → 0,790) qui prédit pourtant une constante par slice et ne peut

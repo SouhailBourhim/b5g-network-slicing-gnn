@@ -148,3 +148,17 @@ signe les siennes avec ses initiales (volet B, volet C).
 **D3.11 — Pas d'ablation par groupe de variables sur le GNN, et pas de GNN sur le découpage « décalage de charge » (B4).** Chacune demanderait un entraînement complet de 2,4 h (4 groupes de variables = ~10 h ; shift = 2,4 h de plus).
 - Raison : même arbitrage que D3.8 — le budget GPU va aux expériences qui tranchent une hypothèse (K = 0, contrôle plat, événements), pas à celles qui la nuancent.
 - Compensation : le volet C fait l'ablation par groupe sur LightGBM avec les mêmes `FEATURE_GROUPS`, ce qui répond à « quelles variables comptent » sans mobiliser le GPU. Le volet B a déjà mesuré les baselines sur le décalage de charge.
+
+## 2026-10-29 — Volet A : apres integration des volets B et C
+
+**D3.12 — H1 confirmée contre la *meilleure* baseline plate, avec intervalle de confiance.** Depuis l'intégration du volet C, le modèle plat le plus fort n'est plus `mlp_flat` (0,403) mais **`lgbm` (0,352 [0,327 ; 0,379])**. Sur test, MAE_log : `gnn_gatv2` **0,128 [0,118 ; 0,138]**. Différence appariée par bootstrap sur les scénarios (`results/bootstrap_diff.csv`, volet C) : **−0,2243 [−0,2484 ; −0,2023]**, le GNN devant dans **100 %** des 1 000 rééchantillonnages.
+- Conséquence pour le rapport : annoncer **× 2,75 contre `lgbm`** et non × 3,1 contre `mlp_flat`. C'est plus conservateur et bien plus défendable — on compare au meilleur adversaire, pas au plus faible.
+- `mlp_flat` reste le contrôle méthodologique utile (même boucle d'entraînement, mêmes features, sans graphe), mais `lgbm` le bat (+0,0512 [+0,0377 ; +0,0638]) : un GBM règle mieux un problème tabulaire qu'un MLP, ce qui est attendu et à dire.
+
+**D3.13 — H3 (« le GNN généralise mieux aux topologies inédites ») n'est PAS confirmée.** Comparaison à charge égale du volet C (`results/bootstrap_load_matched.csv`, repondération par classes de ρ max du test, 5 classes, 158 à 309 scénarios inédits par classe) :
+- `gnn_gatv2` : écart inédites − test **brut** −0,0125 [−0,0273 ; +0,0022] → **à charge égale** −0,0039 [−0,0189 ; +0,0119]. L'intervalle contient 0 : aucune preuve d'une meilleure généralisation.
+- Le cas qui prouve le mécanisme : `gnn_k0` passe de −0,0574 [−0,1141 ; **−0,0044**] (significatif) à +0,0007 [−0,0592 ; +0,0545] (non significatif) ; idem `ridge`, −0,0570 [−0,0977 ; −0,0181] → −0,0185 [−0,0598 ; +0,0208]. L'« avantage » sur les topologies inédites était bien un effet de charge (D3.7), maintenant quantifié.
+- À écrire tel quel : H3 est **infirmée faute de preuve**, pas confirmée. Le GNN ne se dégrade pas non plus — il transfère sans perte, ce qui est déjà le comportement attendu d'un modèle inductif (poids partagés, aucune dépendance au nombre de nœuds).
+
+**D3.14 — Corrections d'intégration (fichiers du volet C).** `notebooks/L3_importance.py` écrivait ses figures dans un dossier `figures/` à la racine : remplacé par `FIG_DIR` (`reports/figures/`) comme le reste du projet, les 5 PNG déplacés. `src/final_table.py` portait une note codée en dur (« seul lgbm a 5 graines ») devenue fausse après l'arrivée de `mlp_flat` (3 graines) : la note est maintenant calculée depuis `metrics_all.csv`.
+- Reste à faire par le volet C : aucune entrée de JOURNAL pour ses décisions (grille d'alpha du ridge, arrêt précoce LightGBM, B = 1 000 et bootstrap par scénario, 5 classes de charge) — §4.5 du plan demande que chacun signe les siennes.
