@@ -28,6 +28,10 @@ from torch_geometric.data import HeteroData
 from src.config import PROCESSED_DIR, GRAPHS_DIR
 from src.splits import load_splits, SPLITS
 
+# Scenario drawn by fig_example_graph: in TRAIN, small enough to read (7 flows, 15 links),
+# the 3 slice types present, and its 7 flows all cross one same link -> shows the coupling.
+EXAMPLE_SCENARIO = 5792
+
 FLOW_FEATS = ["is_eMBB", "is_URLLC", "is_mMTC", "delta", "prov_ratio",
               "log_rate", "log_pkt_size", "path_len"]
 LINK_FEATS = ["log_capacity", "rho_link", "log_n_flows_link", "log_levels_qos", "log_n_queues_used",
@@ -138,6 +142,95 @@ def build_graphs(f, L, h, stats, scenario_ids) -> list[HeteroData]:
         g.scenario_id = int(sid)
         graphs.append(g)
     return graphs
+
+
+# --------------------------------------------------------------------------
+# 3. Figure: the two views of one scenario (L5_01)
+# --------------------------------------------------------------------------
+def fig_example_graph(scenario_id: int = EXAMPLE_SCENARIO, processed_dir=PROCESSED_DIR):
+    """Left: the network. Right: the (flow, link) bipartite graph the GNN actually sees.
+
+    Both panels share one encoding of the load rho: same colormap, links with rho >= 1
+    outlined in red. The right panel is literally the HeteroData of build_graphs():
+    one node per flow, one per used link, one edge per hop.
+    """
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+    import networkx as nx
+    from matplotlib.lines import Line2D
+    from src.plotting import SLICE_COLORS, NEUTRAL
+
+    flt = [("scenario_id", "==", scenario_id)]
+    L = pd.read_parquet(processed_dir / "link_features.parquet", filters=flt)
+    f = pd.read_parquet(processed_dir / "flow_features.parquet", filters=flt,
+                        columns=["flow_id", "slice_type", "path_len"]).sort_values("flow_id")
+    h = pd.read_parquet(processed_dir / "hop_features.parquet", filters=flt,
+                        columns=["flow_id", "link_id", "hop", "wfq_share"])
+    L = L.sort_values("link_id").reset_index(drop=True)
+    # start the ramp above white, otherwise a lightly loaded link is invisible on the surface
+    cmap = mcolors.LinearSegmentedColormap.from_list("rho", plt.get_cmap("YlGnBu")(np.linspace(0.22, 1.0, 256)))
+    norm = plt.Normalize(0, max(1.2, L.rho_link.max()))
+    rho = dict(zip(L.link_id, L.rho_link))
+    label = {lid: f"{s}→{d}" for lid, s, d in zip(L.link_id, L.src, L.dst)}
+    congested = {lid for lid, r in rho.items() if r >= 1.0}
+
+    fig, ax = plt.subplots(1, 2, figsize=(12.5, 5.2), gridspec_kw={"width_ratios": [1, 1.15]})
+    for a in ax:
+        a.set_axis_off()
+
+    # -- left: the physical network, one edge per used link -----------------
+    G = nx.DiGraph((s, d, {"link_id": lid}) for lid, s, d in zip(L.link_id, L.src, L.dst))
+    # These topologies are stars: force-directed layouts stack the leaves of a same hub
+    # on each other. Shells space nodes evenly by construction -> no overlap, no seed.
+    U = G.to_undirected()
+    hubs = sorted(n for n in G if U.degree(n) >= 3)
+    leaves = sorted((n for n in G if U.degree(n) < 3), key=lambda n: (sorted(U[n])[0], n))
+    pos = nx.shell_layout(G, nlist=[hubs, leaves]) if hubs and leaves else nx.circular_layout(G)
+    nx.draw_networkx_nodes(G, pos, ax=ax[0], node_size=330, node_color="#ffffff", edgecolors=NEUTRAL, linewidths=1.0)
+    nx.draw_networkx_labels(G, pos, ax=ax[0], font_size=8, font_color="#2b2b2a")
+    arc = dict(arrowsize=11, node_size=330, connectionstyle="arc3,rad=0.08")
+    for s, d, dat in G.edges(data=True):
+        r = rho[dat["link_id"]]
+        if r >= 1:      # halo first, same geometry, so it sits exactly behind the arrow
+            nx.draw_networkx_edges(G, pos, [(s, d)], ax=ax[0], width=6.5, edge_color="#e34948",
+                                   alpha=0.35, **arc)
+        nx.draw_networkx_edges(G, pos, [(s, d)], ax=ax[0], width=3.2 if r >= 1 else 2.0,
+                               edge_color=[cmap(norm(r))], **arc)
+    ax[0].set_title(f"Scénario {scenario_id} : le réseau\n({len(G)} nœuds, {len(L)} liens utilisés)", fontsize=11)
+
+    # -- right: the bipartite graph of the GNN ------------------------------
+    B = nx.Graph()
+    yf = {fid: i for i, fid in enumerate(f.flow_id)}
+    yl = {lid: i for i, lid in enumerate(L.link_id)}
+    span = max(len(yf), len(yl))
+    p = {f"f{k}": (0.0, span * (0.5 - i / max(1, len(yf) - 1)) if len(yf) > 1 else 0.0) for k, i in yf.items()}
+    p |= {f"l{k}": (1.0, span * (0.5 - i / max(1, len(yl) - 1)) if len(yl) > 1 else 0.0) for k, i in yl.items()}
+    B.add_nodes_from(p)
+    B.add_edges_from((f"f{a}", f"l{b}") for a, b in zip(h.flow_id, h.link_id))
+    nx.draw_networkx_edges(B, p, ax=ax[1], edge_color="#cbcac4", width=1.0)
+    nx.draw_networkx_nodes(B, p, nodelist=[f"f{k}" for k in yf], ax=ax[1], node_size=300, node_shape="o",
+                           node_color=[SLICE_COLORS[t] for t in f.slice_type], edgecolors="white", linewidths=1.2)
+    nx.draw_networkx_nodes(B, p, nodelist=[f"l{k}" for k in yl], ax=ax[1], node_size=300, node_shape="s",
+                           node_color=[cmap(norm(rho[k])) for k in yl], edgecolors=NEUTRAL, linewidths=1.0)
+    nx.draw_networkx_nodes(B, p, nodelist=[f"l{k}" for k in yl if k in congested], ax=ax[1], node_size=430,
+                           node_shape="s", node_color="none", edgecolors="#e34948", linewidths=1.6)
+    for k, (x, y) in p.items():
+        is_flow = k.startswith("f")
+        ax[1].text(x - 0.07 if is_flow else x + 0.07, y, f"flux {k[1:]}" if is_flow else label[int(k[1:])],
+                   ha="right" if is_flow else "left", va="center", fontsize=8, color="#2b2b2a")
+    ax[1].set_xlim(-0.45, 1.45)
+    ax[1].set_title(f"Le graphe vu par le GNN\n({len(yf)} nœuds flux, {len(yl)} nœuds lien, {len(h)} arêtes = sauts)",
+                    fontsize=11)
+
+    handles = [Line2D([], [], marker="o", ls="", mfc=c, mec="white", ms=9, label=f"flux {t}")
+               for t, c in SLICE_COLORS.items()]
+    handles += [Line2D([], [], marker="s", ls="", mfc="#dddcd6", mec=NEUTRAL, ms=9, label="lien"),
+                Line2D([], [], marker="s", ls="", mfc="none", mec="#e34948", mew=1.6, ms=11, label="ρ ≥ 1 (saturé)")]
+    ax[1].legend(handles=handles, loc="center left", bbox_to_anchor=(1.0, 0.5))
+    fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax[0], orientation="horizontal",
+                 fraction=0.05, pad=0.02, label="ρ du lien = charge offerte / capacité")
+    fig.tight_layout()
+    return fig
 
 
 def main():

@@ -1,0 +1,4 @@
+run,model,seed,hidden,dropout,lr,wd,batch_size,max_scenarios,best_epoch,val_mae_log,n_params,minutes
+mlp_flat__seed0,mlp_flat,0,128,0.1,0.001,1e-05,8192,,61,0.40658092550794533,4225,11.32185537815094
+mlp_flat__seed1,mlp_flat,1,128,0.1,0.001,1e-05,8192,,44,0.4084149751458682,4225,7.099568963050842
+mlp_flat__seed2,mlp_flat,2,128,0.1,0.001,1e-05,8192,,63,0.40523453866848674,4225,9.470829530556996

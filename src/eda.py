@@ -207,3 +207,49 @@ def fig_splits(splits: pd.DataFrame, flows_by_slice: pd.DataFrame):
     ax[2].legend()
     fig.tight_layout()
     return fig
+
+
+# --------------------------------------------------------------------------
+# L5 — contrôle du surapprentissage (courbes d'apprentissage)
+# --------------------------------------------------------------------------
+def fig_learning_curves(runs=("gnn_gatv2", "mlp_flat", "gnn_k0"), seed: int = 0, main: str = "gnn_gatv2"):
+    """Left: train vs val of the main model (overfitting control). Right: val of every model.
+
+    Reads results/train_logs/<run>__seed<k>.csv (one row per epoch) and the naive
+    baseline's val MAE from results/metrics_all.csv, so every number comes from results/.
+    """
+    from src.config import RESULTS_DIR
+    from src.plotting import MODEL_COLORS
+
+    hist = {}
+    for r in runs:
+        p = RESULTS_DIR / "train_logs" / f"{r}__seed{seed}.csv"
+        if p.exists():
+            hist[r] = pd.read_csv(p)
+    if main not in hist:
+        raise SystemExit(f"no training log for {main}__seed{seed}")
+
+    fig, ax = plt.subplots(1, 2, figsize=(11.5, 4.2))
+    d = hist[main]
+    best = int(d.val_mae_log.idxmin()) + 1
+    ax[0].plot(d.epoch, d.train_mse_log, color=NEUTRAL, label="train (MSE)")
+    ax[0].plot(d.epoch, d.val_mse_log, color=MODEL_COLORS[0], label="val (MSE)")
+    ax[0].axvline(best, color="#e34948", lw=1.2, ls="--")
+    ax[0].annotate(f"meilleure époque {best}", (best, d.val_mse_log.max()), xytext=(4, -2),
+                   textcoords="offset points", fontsize=8, color="#e34948")
+    ax[0].set(yscale="log", xlabel="époque", ylabel="MSE sur log10(délai)",
+              title=f"{main} : train vs val\n(arrêt précoce, dropout 0,1, weight decay 1e-5)")
+    ax[0].legend()
+
+    naive = pd.read_csv(RESULTS_DIR / "metrics_all.csv")
+    naive = naive[(naive.model == "naive_median_slice") & (naive.split == "val")
+                  & (naive.subset == "all") & (naive.slice_type == "ALL")].mae_log
+    for i, (r, d) in enumerate(hist.items()):
+        ax[1].plot(d.epoch, d.val_mae_log, color=MODEL_COLORS[i], label=r)
+    if len(naive):
+        ax[1].axhline(float(naive.iloc[0]), color=NEUTRAL, lw=1.2, ls=":", label="naive_median_slice")
+    ax[1].set(yscale="log", xlabel="époque", ylabel="MAE sur log10(délai), val",
+              title="Convergence comparée (val)")
+    ax[1].legend()
+    fig.tight_layout()
+    return fig
