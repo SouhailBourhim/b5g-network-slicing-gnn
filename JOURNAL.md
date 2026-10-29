@@ -162,3 +162,37 @@ signe les siennes avec ses initiales (volet B, volet C).
 
 **D3.14 — Corrections d'intégration (fichiers du volet C).** `notebooks/L3_importance.py` écrivait ses figures dans un dossier `figures/` à la racine : remplacé par `FIG_DIR` (`reports/figures/`) comme le reste du projet, les 5 PNG déplacés. `src/final_table.py` portait une note codée en dur (« seul lgbm a 5 graines ») devenue fausse après l'arrivée de `mlp_flat` (3 graines) : la note est maintenant calculée depuis `metrics_all.csv`.
 - Reste à faire par le volet C : aucune entrée de JOURNAL pour ses décisions (grille d'alpha du ridge, arrêt précoce LightGBM, B = 1 000 et bootstrap par scénario, 5 classes de charge) — §4.5 du plan demande que chacun signe les siennes.
+
+## 2026-10-29 — Volet C (données et ML classique)
+
+*(Entrées D5.1 à D5.4 rédigées par Claude à partir du code et des résultats, en l'absence d'entrées du volet C —
+voir §4.5 du plan : chaque personne signe ses propres décisions. À relire, corriger et signer avant la soutenance.)*
+
+**D5.1 — Règle de transformation (log10 / log1p / brut) décidée par variable, sur train seulement.**
+- Règle : log10 si strictement positif et max/min > 100 (débits, capacités, termes de file) ; log1p si non négatif et max > 100 (compteurs) ; brut sinon (indicatrices, ratios bornés). Décidée sur `X[is_train]`, appliquée telle quelle à val/test (`fit_rules`/`apply_rules`, `src/baselines_ml.py`).
+- Alternative rejetée : une seule transformation pour toutes les variables, qui écraserait la variance utile des variables de charge sous celle des grandes valeurs brutes.
+
+**D5.2 — Grille complète d'α pour Ridge, publiée dans `results/ridge_alpha_grid.csv` ; la régularisation ne change presque rien.**
+- Constat : MAE_log de val quasi constante de α = 1e-3 à 10 (0,499267 à 0,499270, variation en 5ᵉ décimale), puis légère dégradation au-delà (0,503 à α = 1e4). Avec 934 542 lignes de train pour 27 variables, le problème est déjà très bien déterminé : pas de surapprentissage à corriger dans la plage testée.
+- Conséquence : la limite de Ridge (MAE_log test 0,510) est sa forme linéaire, pas un défaut de réglage — à dire explicitement, ce n'est pas un échec de la recherche d'hyperparamètre.
+
+**D5.3 — LightGBM : arrêt précoce (patience 100) sur la MAE_log de val, jusqu'à 3000 arbres ; 5 graines (aléa du sous-échantillonnage des lignes/colonnes), 1 seule graine pour Ridge (déterministe).**
+- Résultat : LightGBM 0,352 [0,326 ; 0,379] sur test (5 graines, écart-type 0,0019), Ridge 0,510 [0,481 ; 0,538] (1 graine) — facteur 1,45. Courbe train/val publiée (`L3_01_courbe_apprentissage.png`) comme preuve que le nombre d'arbres n'est pas choisi arbitrairement.
+- Ablation par groupe (réentraînement sans le groupe, pas mise à zéro après coup) : `utilization` (+0,0582) et `wfq` (+0,0342) dominent largement le bruit entre graines (écart-type 0,0019) ; `capacity`, `path`, `scenario`, `traffic` sont dans le bruit. Cohérent avec D1.5 (le trafic réel est constant par slice) et avec D3.12 (le GNN calcule ces mêmes grandeurs de charge le long du graphe).
+
+**D5.4 — Bootstrap sur les SCÉNARIOS (jamais les flux), B = 1000, poids multinomiaux partagés entre modèles d'un même groupe (différences appariées) ; comparaison « topologies inédites vs test » repondérée par 5 classes de ρ max du test pour isoler l'effet de charge.**
+- Raison : les flux d'un même scénario partagent des liens et des files, donc sont corrélés (D2.1) — un bootstrap sur les flux sous-estimerait l'incertitude réelle. Le partage des poids entre modèles resserre l'intervalle de la différence par rapport à deux intervalles calculés séparément.
+- Résultat clé (voir aussi D3.13) : l'écart brut « inédites moins test » est négatif pour tous les modèles (apparence de meilleure généralisation), mais devient non significatif à charge égale pour `gnn_gatv2` (−0,0039 [−0,0189 ; +0,0119]) et change même de signe pour `gnn_k0` et `ridge` — la preuve quantitative que l'écart observé était un effet de charge, pas de topologie.
+- Alternative rejetée : bootstrap sur les flux (sous-estimerait l'incertitude) ; comparer les bruts sans repondération (confondrait topologie nouvelle et charge différente, cf. D2.1).
+
+**D3.15 — H4 confirmée : les flux affamés (`event_type == both`) sont là où tous les modèles échouent le plus, et où l'avantage du GNN est le plus net.** MAE_log test par `event_type` (moyenne sur les graines, `events.parquet` du volet B) :
+
+| event_type | n flux | gnn_gatv2 | lgbm | mlp_flat | naive |
+|---|---|---|---|---|---|
+| none | 34 632 | 0,121 | 0,229 | 0,290 | 1,322 |
+| congestion | 148 514 | 0,106 | 0,295 | 0,337 | 0,576 |
+| **both** (congestion + famine) | 18 807 | **0,315** | 1,026 | 1,136 | 1,850 |
+
+`both` (9,3 % des flux de test) est la catégorie où le délai réel est le plus extrême (les flux affamés, journal D1.8) : tous les modèles s'y dégradent fortement, mais le GNN reste 3,3 fois meilleur que `lgbm` (contre 2,8 fois sur `congestion` et 1,9 fois sur `none`) — l'écart relatif se creuse avec la sévérité. En valeur absolue, même le GNN se dégrade nettement (0,106 → 0,315) : ce n'est pas un modèle parfait sur la famine, juste le moins mauvais.
+- Pas de catégorie « famine seule » (D4.3 volet B : la règle de famine implique congestion), donc `both` est la meilleure approximation disponible de « flux affamé ».
+- Confirme H4 (annexe du plan) sans ambiguïté, contrairement à H2 où la première moitié n'était vraie qu'au palier sévère (D3.10).

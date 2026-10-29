@@ -111,6 +111,29 @@ def fig_delay_vs(f: pd.DataFrame, col: str, bins, xlabel: str, title: str, logx:
     return fig
 
 
+def fig_error_vs_rho(frame: pd.DataFrame, models: list[str], bins, colors: list[str]):
+    """Median |error| (+ IQR) vs rho_link_max, one curve per model (L6, error analysis).
+
+    frame: one row per (model, flow) with columns model, rho_link_max, abs_err (already
+    averaged over seeds). Answers "where does each model fail?" across the whole range of
+    load, not just the event / non-event split.
+    """
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+    for m, c in zip(models, colors):
+        d = frame[frame.model == m]
+        b = binned_quantiles(d.rho_link_max, d.abs_err, bins)
+        ax.plot(b.x, b.q50, color=c, label=m, marker="o", ms=3)
+        ax.fill_between(b.x, b.q25, b.q75, color=c, alpha=0.12, lw=0)
+    ax.axvline(1.05, color="#e34948", lw=1, ls="--")
+    ax.annotate("τ = 1,05", (1.05, ax.get_ylim()[1]), xytext=(3, -10), textcoords="offset points",
+               fontsize=8, color="#e34948")
+    ax.set(yscale="log", xlabel="ρ max du chemin (écrêté)", ylabel="|erreur| sur log10(délai) (médiane, IQR)",
+          title="Où chaque modèle se trompe : erreur en fonction de la charge")
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    return fig
+
+
 def fig_rho_validation(links: pd.DataFrame):
     """Input-side utilization min(rho,1) vs utilization measured by the simulator."""
     L = links[links.meas_util.notna()]
