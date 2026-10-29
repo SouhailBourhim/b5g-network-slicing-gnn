@@ -106,3 +106,10 @@ Format : date — décision — raison (appuyée sur une donnée, un graphe ou u
 - Constat : 85,4 % des flux de train ont ρ_max ≥ 1 (médiane 1,245). Congestion à τ = 1,05 : 82,2 % des flux de train ; famine (part WFQ < 1e-3 sur un lien à ρ ≥ τ) : 10,7 % ; aucun cas « famine seule » car la famine implique ρ ≥ τ.
 - Conséquence : « événement vs non-événement » compare presque tout le jeu à une petite minorité peu chargée. Le palier « sévère » is_event_tau_2_0 (16,1 % des flux de test) est la comparaison utile ; à discuter avec l'équipe avant L6.
 - Erreur MAE_log test, non-événement / événement / sévère : naïve 1,322 / 0,719 / 1,098 ; analytic_mm1 0,363 / 0,708 / 0,983 ; analytic_mm1k_wfq 2,448 / 0,871 / 0,612.
+
+**D3.4 — Découpage « décalage de charge » (B4) : entraîner sur le tercile bas de ρ_max-scénario, tester sur milieu et haut (T.).**
+- Règle : coupures Q1 = 1,283 et Q2 = 1,983 = terciles de `scen_rho_max` sur les scénarios de **train d'origine** ; `test_unseen_topo` exclu. Groupes : shift_train (1 412 scénarios, 265 055 flux), shift_val (303), shift_test_id (302), shift_test_mid (2 014, 498 153 flux), shift_test_high (2 016, 465 591 flux). Fichiers : `results/shift_splits.csv`, `results/shift_summary.json`, code `src/shift.py`.
+- Les scénarios mid/high pris dans train, val ou test d'origine sont des tests légitimes : un modèle « shift » ne s'entraîne jamais dessus. Colonne `topology_in_shift_train` pour isoler l'effet charge (95,4 % des mid et 85,8 % des high sont sur des topologies vues).
+- Constat : le tercile « bas » n'est pas peu chargé. ρ_max va de 0,45 à 1,28 et 85,4 % de ses flux sont déjà en événement (τ = 1,05). Le décalage est donc « surcharge modérée → forte », pas « réseau libre → saturé ». À écrire ainsi dans le rapport.
+- Baselines (MAE_log, entraînées sur shift_train) id / mid / high : naïve 0,567 / 0,844 / 1,087 ; analytic_mm1 0,603 / 0,588 / 0,745 ; analytic_mm1k_link_cal 0,622 / 0,652 / 0,793. Mêmes tendances en ne gardant que les topologies vues (naïve 1,061, mm1 0,756 sur high).
+- La calibration change avec le régime : (a, b) = (0,520 ; 0,981) sur shift_train contre (1,740 ; 1,318) sur le train complet.
