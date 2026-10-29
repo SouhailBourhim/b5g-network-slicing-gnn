@@ -89,3 +89,20 @@ Format : date — décision — raison (appuyée sur une donnée, un graphe ou u
 **D3.2 — Incident corrigé : cache de 330 Go.** `torch.from_numpy(tableau[i:j])` crée une *vue* sur tout le tableau ; `torch.save` écrivait donc le tableau complet pour chaque graphe. Corrigé en copiant chaque tranche (`torch.tensor`), fichier supprimé, taille réelle 539 Mo. Leçon : mesurer temps et taille sur 100 scénarios avant tout calcul complet.
 
 **D3.3 — Modèle** (`src/models/gnn.py`) : encodeurs MLP, K itérations alternant liens←flux puis flux←liens (résiduel + LayerNorm + dropout), lecture MLP sur les flux. Deux convolutions : GATv2Conv avec `edge_dim` (attention inspectable) et EdgeSAGE (GraphSAGE moyenne dont le message voit les attributs d'arête, car SAGEConv les ignore). `gnn_k0` = K=0 = MLP sur les seules features du flux. Entraînement `src/train_gnn.py` sur GPU : MSE sur log10(délai), AdamW, ReduceLROnPlateau, arrêt précoce sur la MAE_log de val, test prédit une seule fois avec le meilleur checkpoint. Tests rapides (50 scénarios, 2 époques) OK sur les trois variantes.
+
+## 2026-10-29 — Volet B (réseau et événements)
+
+**D3.1 — Baselines analytiques : M/M/1 simple bat M/M/1/K et WFQ ; calibration sans gain net (T.).**
+- Constat (MAE_log test) : analytic_mm1 0,649 ; analytic_mm1k_link 0,839 ; analytic_mm1k_wfq 1,141 ; analytic_mm1k_link_cal 0,672 (a = 1,740, b = 1,318, ajustés sur train) ; naïve 0,822.
+- Erreur signée (val) : M/M/1/K sous-estime fortement quand ρ_max > 1,05 (−0,67 à −0,80 en log10) ; M/M/1 surestime près de ρ ≈ 1 (+0,73) puis sous-estime (−0,14 à −0,31).
+- Alternative rejetée : choisir la meilleure des trois sans le dire ; les quatre sont publiées.
+
+**D3.2 — Seuil de congestion τ = 1,05, choisi sur train (T.).**
+- Raison : le plus grand saut de la médiane de log10(délai) entre deux classes de ρ_max est +0,742 entre (1,0 ; 1,05] et (1,05 ; 1,1] (results/L4_tau_choice.csv). Le coude est à 1,05, pas à 1,0.
+- Alternative rejetée : τ = 1,0 (seuil théorique) ; le saut y est de +0,134 seulement.
+- Sensibilité : colonnes is_event_tau_{0_9, 1_0, 1_05, 1_1, 2_0}.
+
+**D3.3 — Les « événements » sont la majorité des flux : 82,9 % sur test (T.).**
+- Constat : 85,4 % des flux de train ont ρ_max ≥ 1 (médiane 1,245). Congestion à τ = 1,05 : 82,2 % des flux de train ; famine (part WFQ < 1e-3 sur un lien à ρ ≥ τ) : 10,7 % ; aucun cas « famine seule » car la famine implique ρ ≥ τ.
+- Conséquence : « événement vs non-événement » compare presque tout le jeu à une petite minorité peu chargée. Le palier « sévère » is_event_tau_2_0 (16,1 % des flux de test) est la comparaison utile ; à discuter avec l'équipe avant L6.
+- Erreur MAE_log test, non-événement / événement / sévère : naïve 1,322 / 0,719 / 1,098 ; analytic_mm1 0,363 / 0,708 / 0,983 ; analytic_mm1k_wfq 2,448 / 0,871 / 0,612.
