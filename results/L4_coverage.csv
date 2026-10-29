@@ -1,0 +1,17 @@
+slice,split,n_flows,pct_flows_event,pct_congestion,pct_starvation,pct_scen_with_event
+all,test,201953,82.9,82.9,9.3,98.1
+all,test_unseen_topo,230303,85.2,85.2,9.2,98.5
+all,train,934547,82.2,82.2,10.7,98.2
+all,val,209866,84.6,84.6,9.7,98.8
+URLLC,test,42169,81.7,81.7,10.5,88.5
+eMBB,test,8630,90.6,90.6,17.3,95.7
+mMTC,test,151154,82.7,82.7,8.5,88.8
+URLLC,test_unseen_topo,51086,80.8,80.8,9.3,87.5
+eMBB,test_unseen_topo,9952,92.0,92.0,15.4,96.2
+mMTC,test_unseen_topo,169265,86.1,86.1,8.9,90.9
+URLLC,train,190814,82.4,82.4,11.2,89.0
+eMBB,train,39026,91.1,91.1,17.7,96.5
+mMTC,train,704707,81.6,81.6,10.1,89.5
+URLLC,val,41387,81.6,81.6,11.1,87.9
+eMBB,val,8398,92.0,92.0,16.1,97.0
+mMTC,val,160081,85.0,85.0,9.0,90.5
