@@ -1,0 +1,49 @@
+### MAE_log [IC 95 % bootstrap sur les scenarios], toutes slices
+
+| model | test / all | test / event | test / non_event | test_unseen_topo / all | test_unseen_topo / event | test_unseen_topo / non_event |
+|---|---|---|---|---|---|---|
+| lgbm | 0.352 [0.326 ; 0.379] | 0.377 [0.346 ; 0.410] | 0.229 [0.205 ; 0.255] | 0.321 [0.294 ; 0.350] | 0.336 [0.305 ; 0.372] | 0.235 [0.212 ; 0.259] |
+| ridge | 0.510 [0.481 ; 0.538] | 0.507 [0.477 ; 0.543] | 0.524 [0.487 ; 0.565] | 0.453 [0.424 ; 0.481] | 0.444 [0.410 ; 0.477] | 0.506 [0.465 ; 0.552] |
+| analytic_mm1 | 0.649 [0.615 ; 0.684] | 0.708 [0.671 ; 0.751] | 0.363 [0.328 ; 0.405] | 0.646 [0.609 ; 0.683] | 0.682 [0.637 ; 0.726] | 0.441 [0.394 ; 0.492] |
+| analytic_mm1k_link_cal | 0.672 [0.638 ; 0.705] | 0.697 [0.661 ; 0.739] | 0.553 [0.512 ; 0.596] | 0.667 [0.632 ; 0.703] | 0.680 [0.636 ; 0.721] | 0.597 [0.555 ; 0.642] |
+| naive_median_slice | 0.822 [0.780 ; 0.864] | 0.719 [0.680 ; 0.763] | 1.322 [1.254 ; 1.389] | 0.790 [0.754 ; 0.827] | 0.715 [0.675 ; 0.757] | 1.223 [1.152 ; 1.288] |
+| analytic_mm1k_link | 0.839 [0.800 ; 0.882] | 0.950 [0.906 ; 0.999] | 0.307 [0.277 ; 0.339] | 0.815 [0.774 ; 0.859] | 0.897 [0.846 ; 0.947] | 0.343 [0.314 ; 0.377] |
+| analytic_mm1k_wfq | 1.141 [1.057 ; 1.234] | 0.871 [0.789 ; 0.958] | 2.448 [2.262 ; 2.633] | 0.925 [0.851 ; 1.006] | 0.699 [0.631 ; 0.770] | 2.222 [2.048 ; 2.396] |
+
+### MSE_log (moyenne ± ecart-type sur graines), toutes slices
+
+| model | test / all | test / event | test / non_event | test_unseen_topo / all | test_unseen_topo / event | test_unseen_topo / non_event |
+|---|---|---|---|---|---|---|
+| lgbm | 0.373 ± 0.006 | 0.426 ± 0.008 | 0.116 ± 0.002 | 0.355 ± 0.003 | 0.396 ± 0.003 | 0.116 ± 0.004 |
+| ridge | 0.576 | 0.605 | 0.438 | 0.514 | 0.528 | 0.436 |
+| analytic_mm1 | 0.902 | 1.028 | 0.293 | 0.922 | 1.016 | 0.384 |
+| analytic_mm1k_link_cal | 0.886 | 0.975 | 0.459 | 0.904 | 0.971 | 0.519 |
+| naive_median_slice | 1.301 | 1.131 | 2.124 | 1.193 | 1.082 | 1.835 |
+| analytic_mm1k_link | 1.325 | 1.554 | 0.218 | 1.320 | 1.503 | 0.261 |
+| analytic_mm1k_wfq | 3.384 | 2.371 | 8.276 | 2.556 | 1.739 | 7.257 |
+
+### MAE_log par type de slice, test, tous les flux
+
+| model | ALL | URLLC | eMBB | mMTC |
+|---|---|---|---|---|
+| lgbm | 0.352 ± 0.002 | 0.346 ± 0.003 | 0.422 ± 0.004 | 0.350 ± 0.003 |
+| ridge | 0.510 | 0.505 | 0.595 | 0.506 |
+| analytic_mm1 | 0.649 | 0.705 | 0.685 | 0.631 |
+| analytic_mm1k_link_cal | 0.672 | 0.784 | 0.867 | 0.630 |
+| naive_median_slice | 0.822 | 0.765 | 0.703 | 0.845 |
+| analytic_mm1k_link | 0.839 | 0.635 | 0.817 | 0.898 |
+| analytic_mm1k_wfq | 1.141 | 1.234 | 1.281 | 1.107 |
+
+### MAE_log par type de slice, test, evenements uniquement
+
+| model | ALL | URLLC | eMBB | mMTC |
+|---|---|---|---|---|
+| lgbm | 0.377 ± 0.002 | 0.376 ± 0.003 | 0.447 ± 0.004 | 0.373 ± 0.004 |
+| ridge | 0.507 | 0.515 | 0.609 | 0.498 |
+| analytic_mm1 | 0.708 | 0.728 | 0.724 | 0.702 |
+| analytic_mm1k_link_cal | 0.697 | 0.788 | 0.848 | 0.662 |
+| naive_median_slice | 0.719 | 0.766 | 0.670 | 0.709 |
+| analytic_mm1k_link | 0.950 | 0.700 | 0.875 | 1.023 |
+| analytic_mm1k_wfq | 0.871 | 1.108 | 1.178 | 0.786 |
+
+Remarque : seul lgbm a 5 graines ; les autres modeles ont une seule graine (pas d'ecart-type).
