@@ -1,0 +1,51 @@
+{
+ "Q1": 1.2833,
+ "Q2": 1.9832,
+ "groups": [
+  {
+   "shift_split": "shift_train",
+   "n_scenarios": 1412,
+   "n_flows": 265055,
+   "n_topologies": 124,
+   "rho_min": 0.45,
+   "rho_median": 1.2,
+   "rho_max": 1.283
+  },
+  {
+   "shift_split": "shift_val",
+   "n_scenarios": 303,
+   "n_flows": 59288,
+   "n_topologies": 79,
+   "rho_min": 0.45,
+   "rho_median": 1.2,
+   "rho_max": 1.283
+  },
+  {
+   "shift_split": "shift_test_id",
+   "n_scenarios": 302,
+   "n_flows": 58279,
+   "n_topologies": 90,
+   "rho_min": 0.45,
+   "rho_median": 1.2,
+   "rho_max": 1.283
+  },
+  {
+   "shift_split": "shift_test_mid",
+   "n_scenarios": 2014,
+   "n_flows": 498153,
+   "n_topologies": 132,
+   "rho_min": 1.284,
+   "rho_median": 1.635,
+   "rho_max": 1.983
+  },
+  {
+   "shift_split": "shift_test_high",
+   "n_scenarios": 2016,
+   "n_flows": 465591,
+   "n_topologies": 116,
+   "rho_min": 1.983,
+   "rho_median": 2.25,
+   "rho_max": 8.75
+  }
+ ]
+}
