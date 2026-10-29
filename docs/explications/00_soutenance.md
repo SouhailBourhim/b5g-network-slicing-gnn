@@ -1,6 +1,8 @@
 # 00 — Aide-mémoire de soutenance
 
 Document commun, **une section par volet**. Chacun rédige et défend la sienne.
+
+> **Mise à jour D3.16** : une 2e graine de `gnn_gatv2` est arrivée après la rédaction de ce fichier (MAE_log test moyenne sur 2 graines : **0,135 ± 0,0102**, contre 0,128 à 1 graine). Les conclusions (H1, H3) ne changent pas, seules les décimales bougent légèrement. Chiffres à jour : `notebooks/L5_gnn.py`/`L6_comparaison.py` (recalculent depuis `results/`) et `JOURNAL.md` D3.16.
 Chiffres : `results/metrics_all.csv`. Détail des choix : `01_exploration.md`, `02_problematique.md`,
 `05_gnn.md`, et `JOURNAL.md` pour les décisions datées.
 

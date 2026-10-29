@@ -1,6 +1,8 @@
 # 06 — Comparaison, discussion, limites (L6)
 
 Document commun aux trois volets. Chiffres : `results/table_final.md`, `results/bootstrap_*.csv`,
+
+> **Mise à jour D3.16** : une 2e graine de `gnn_gatv2` est arrivée après la rédaction de ce fichier (MAE_log test moyenne sur 2 graines : **0,135 ± 0,0102**, contre 0,128 à 1 graine). Les conclusions (H1, H3) ne changent pas, seules les décimales bougent légèrement. Chiffres à jour : `notebooks/L5_gnn.py`/`L6_comparaison.py` (recalculent depuis `results/`) et `JOURNAL.md` D3.16.
 `results/metrics_all.csv`. Détail : `notebooks/L6_comparaison.py` (+ `.ipynb` exécuté), figure `L6_01_erreur_vs_rho.png`.
 
 ## Ce qu'on a fait

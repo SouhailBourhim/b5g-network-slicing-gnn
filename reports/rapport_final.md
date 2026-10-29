@@ -5,6 +5,8 @@ dataset: The foundations for AI-based B5G resource management*, Data in Brief 55
 Zenodo 10.5281/zenodo.10610616 (v2.2.1, CC BY 4.0).
 
 > Tous les chiffres de ce rapport viennent d'un fichier de `results/`. Le détail méthodologique, les questions de
+
+> **Mise à jour D3.16** : une 2e graine de `gnn_gatv2` est arrivée après la rédaction de ce fichier (MAE_log test moyenne sur 2 graines : **0,135 ± 0,0102**, contre 0,128 à 1 graine). Les conclusions (H1, H3) ne changent pas, seules les décimales bougent légèrement. Chiffres à jour : `notebooks/L5_gnn.py`/`L6_comparaison.py` (recalculent depuis `results/`) et `JOURNAL.md` D3.16.
 > jury et le code expliqué ligne par ligne sont dans `docs/explications/01` à `06`. Les décisions datées, avec leur
 > raison chiffrée et l'alternative rejetée, sont dans `JOURNAL.md`.
 
